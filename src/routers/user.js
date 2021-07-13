@@ -1,13 +1,20 @@
 const express = require('express')
 const User = require('../models/user')
 const router = new express.Router()
+const auth = require('../middleware/auth')
 
 router.post('/users', async (req, res) => {
   const user = new User(req.body)
+  const token = await user.generateAuthToken()
+
 
   try {
     await user.save()
-    res.status(201).send(user)
+
+    res.status(201).send({
+      user,
+      token
+    })
   } catch (e) {
     res.status(400).send(e)
   }
@@ -15,7 +22,20 @@ router.post('/users', async (req, res) => {
   await user.save()
 })
 
-router.get('/users', async (req, res) => {
+router.post("/users/login", async (req, res) => {
+  try {
+    const user = await User.findByCredentials(req.body.email, req.body.password)
+    const token = await user.generateAuthToken()
+    res.send({
+      user,
+      token
+    })
+  } catch (e) {
+    res.status(400).send(e)
+  }
+})
+
+router.get('/users', auth, async (req, res) => {
 
   try {
     const users = await User.find({})
@@ -67,6 +87,18 @@ router.patch('/users/:id', async (req, res) => {
     res.send(user)
   } catch (e) {
     res.status(400).send(e)
+  }
+})
+
+router.delete('/users/:id', async (req, res) => {
+  try {
+    const user = await User.findByIdAndDelete(req.params.id)
+    if (!user) {
+      return res.status(404).send()
+    }
+    res.send(user)
+  } catch (e) {
+    res.status(500).send()
   }
 })
 
